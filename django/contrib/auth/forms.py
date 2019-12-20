@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import unicodedata
+
 from collections import OrderedDict
 
 from django import forms
@@ -9,6 +11,7 @@ from django.utils.encoding import force_bytes
 from django.utils.html import format_html, format_html_join
 from django.utils.http import urlsafe_base64_encode
 from django.utils.safestring import mark_safe
+from django.utils.six import PY3
 from django.utils.text import capfirst
 from django.utils.translation import ugettext, ugettext_lazy as _
 
@@ -26,6 +29,20 @@ def mask_password(password):
     shown = password[:UNMASKED_DIGITS_TO_SHOW]
     masked = "*" * max(len(password) - UNMASKED_DIGITS_TO_SHOW, 0)
     return shown + masked
+
+
+def _unicode_ci_compare(s1, s2):
+    """
+    Perform case-insensitive comparison of two identifiers, using the
+    recommended algorithm from Unicode Technical Report 36, section
+    2.11.2(B)(2).
+    """
+    normalized1 = unicodedata.normalize('NFKC', s1)
+    normalized2 = unicodedata.normalize('NFKC', s2)
+    if PY3:
+        return normalized1.casefold() == normalized2.casefold()
+    # lower() is the best alternative available on Python 2.
+    return normalized1.lower() == normalized2.lower()
 
 
 class ReadOnlyPasswordHashWidget(forms.Widget):
@@ -247,7 +264,7 @@ class PasswordResetForm(forms.Form):
         for user in active_users:
             # Make sure that no email is sent to a user that actually has
             # a password marked as unusable
-            if not user.has_usable_password():
+            if not (user.has_usable_password() and _unicode_ci_compare(email, user.email)):
                 continue
             if not domain_override:
                 current_site = get_current_site(request)
