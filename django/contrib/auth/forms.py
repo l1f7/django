@@ -23,8 +23,6 @@ from django.utils.six import PY3
 from django.utils.text import capfirst
 from django.utils.translation import ugettext, ugettext_lazy as _
 
-UserModel = get_user_model()
-
 
 def _unicode_ci_compare(s1, s2):
     """
